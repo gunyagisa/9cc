@@ -13,7 +13,7 @@ enum {
 typedef struct{
 	int ty;
 	int val;
-	char *iniput;
+	char *input;
 } Token;
 
 //トークナイズした結果のトークン列はこの配列に保存する
@@ -39,7 +39,7 @@ void tokenize(char *p){
 		if(isdigit(*p)){
 			tokens[i].ty = TK_NUM;
 			tokens[i].input = p;
-			tokens[i].val = strtoi(p, &p, 10);
+			tokens[i].val = strtol(p, &p, 10);
 			i++;
 			continue;
 		}
