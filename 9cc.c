@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 //トークンの型を表す値
 enum {
@@ -19,7 +20,15 @@ typedef struct{
 //トークナイズした結果のトークン列はこの配列に保存する
 //１００個以上のトークンは来ないものとする
 Token tokens[100];
+int pos;
 
+void error(char *fmt, ...){
+	va_list ap;
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	exit(1);
+}
 void tokenize(char *p){
 	int i = 0;
 	while(*p){
@@ -28,7 +37,7 @@ void tokenize(char *p){
 			continue;
 		}
 
-		if(*p == '+' || *p == '-'){
+		if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||  *p == '(' || *p == ')') {
 			tokens[i].ty = *p;
 			tokens[i].input = p;
 			i++;
@@ -44,7 +53,7 @@ void tokenize(char *p){
 			continue;
 		}
 
-		fprintf(stderr, "トークナイズできません: %s\n", p);
+		error("トークナイズできません: %s", p);
 		exit(1);
 	}
 
@@ -52,13 +61,9 @@ void tokenize(char *p){
 	tokens[i].input = p;
 }
 
-void error(int i){
-	fprintf(stderr, "予期しないトークンです: %s\n", tokens[i].input);
-	exit(1);
-}
 //構文解析
 enum {
-	ND_NUM = 256;
+	ND_NUM = 256,
 };
 
 typedef struct Node {
@@ -67,6 +72,9 @@ typedef struct Node {
 	struct Node *rhs; //右辺
 	int val;
 }	Node;
+
+Node *term();
+Node *mul();
 
 Node *new_node(int ty, Node *lhs, Node *rhs) {
 	Node *node = malloc(sizeof(Node));
@@ -105,14 +113,15 @@ Node *add() {
 }
 
 Node *mul() {
-	Node *node =
+	Node *node = term();
+
 	for (;;) {
 		if (consume('*'))
 			node = new_node('*', node, term());
-			else if (consume('/'))
-				node = new_node('/', node, term());
-			else
-				return node;
+		else if (consume('/'))
+			node = new_node('/', node, term());
+		else
+			return node;
 	}
 }
 
