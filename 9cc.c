@@ -75,6 +75,7 @@ typedef struct Node {
 
 Node *term();
 Node *mul();
+Node *unary();
 
 Node *new_node(int ty, Node *lhs, Node *rhs) {
 	Node *node = malloc(sizeof(Node));
@@ -113,7 +114,7 @@ Node *add() {
 }
 
 Node *mul() {
-	Node *node = term();
+	Node *node = unary();
 
 	for (;;) {
 		if (consume('*'))
@@ -138,6 +139,14 @@ Node *term() {
 		return new_node_num(tokens[pos++].val);
 	error("数値でも開きカッコでもないトークンです: %s",
 				tokens[pos].input);
+}
+
+Node *unary() {
+	if (consume('+'))
+		return term();
+	if (consume('-'))
+		return new_node('-', new_node_num(0), term());
+	return term();
 }
 
 void gen(Node *node) {
