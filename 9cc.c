@@ -8,6 +8,10 @@
 enum {
 	TK_NUM = 256, //整数トークン
 	TK_EOF,       //入力の終わりを表すトークン
+	TK_EQ,        //==
+	TK_NE,        //!=
+	TK_LE,        //< <=
+	TK_GE,        //> >=
 };
 
 //トークンの型
@@ -29,6 +33,7 @@ void error(char *fmt, ...){
 	fprintf(stderr, "\n");
 	exit(1);
 }
+
 void tokenize(char *p){
 	int i = 0;
 	while(*p){
@@ -37,7 +42,39 @@ void tokenize(char *p){
 			continue;
 		}
 
-		if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||  *p == '(' || *p == ')') {
+		if (strncmp(p, "<=", 2) == 0) {
+				tokens[i].ty = TK_LE;
+				tokens[i].input = "<=";
+				p += 2;
+				i++;
+				continue;
+		}
+
+		if (strncmp(p, ">=", 2) == 0) {
+				tokens[i].ty = TK_GE;
+				tokens[i].input = ">=";
+				p += 2;
+				i++;
+				continue;
+		}
+
+		if (strncmp(p, "==", 2) == 0) {
+			tokens[i].ty = TK_EQ;
+			tokens[i].input = "==";
+			p += 2;
+			i++;
+			continue;
+		}
+
+		if (strncmp(p, "!=", 2) == 0){
+			tokens[i].ty = TK_NE;
+			tokens[i].input = "==";
+			p += 2;
+			i++;
+			continue;
+		}
+
+		if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||  *p == '(' || *p == ')' || *p == '>' || *p == '<') {
 			tokens[i].ty = *p;
 			tokens[i].input = p;
 			i++;
@@ -52,6 +89,7 @@ void tokenize(char *p){
 			i++;
 			continue;
 		}
+
 
 		error("トークナイズできません: %s", p);
 		exit(1);
@@ -73,6 +111,8 @@ typedef struct Node {
 	int val;
 }	Node;
 
+Node *relational();
+Node *add();
 Node *term();
 Node *mul();
 Node *unary();
@@ -99,6 +139,37 @@ int consume(int ty) {
 	return 1;
 
 }
+
+Node *equality() {
+	Node *node = relational();
+
+	for (;;) {
+		if (consume(TK_EQ))
+			node = new_node(TK_EQ, node, relational());
+		else if (consume(TK_NE))
+			node = new_node(TK_NE, node, relational());
+		else
+			return node;
+	}
+}
+
+Node *relational() {
+	Node *node = add();
+
+	for (;;) {
+		if (consume(TK_GE))
+			node = new_node(TK_LE, add(), node);
+		else if (consume('>'))
+			node = new_node('<', add(), node);
+		else if (consume(TK_LE))
+			node = new_node(TK_LE, node, add());
+		else if (consume('<'))
+			node = new_node('<', node, add());
+		else
+			return node;
+	}
+}
+
 
 Node *add() {
 	Node *node = mul();
@@ -172,9 +243,31 @@ void gen(Node *node) {
 		printf("  mul rdi\n");
 		break;
 	case '/':
-	printf(" mov rdx, 0\n");
-	printf("  div rdi\n");
-}
+		printf("  mov rdx, 0\n");
+		printf("  div rdi\n");
+		break;
+	default:
+		printf("  cmp rax, rdi\n");
+		char *set;
+		switch (node->ty) {
+			case TK_EQ:
+				set = "sete";
+				break;
+			case TK_NE:
+				set = "setne";
+				break;
+			case TK_LE:
+				set = "setle";
+				break;
+			case '<':
+				set = "setl";
+				break;
+		}
+		printf("  %s al\n", set);
+		printf("  movzb rax, al\n");
+		break;
+
+	}
 
 printf("  push rax\n");
 }
@@ -189,7 +282,7 @@ int main(int argc, char **argv){
 
 	//トークナイズしてパースする
 	tokenize(argv[1]);
-	Node *node = add();
+	Node *node = equality();
 
 	//アセンブリの前半部分を出力
 	printf(".intel_syntax noprefix\n");
