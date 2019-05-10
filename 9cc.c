@@ -23,9 +23,32 @@ typedef struct{
 
 //トークナイズした結果のトークン列はこの配列に保存する
 //１００個以上のトークンは来ないものとする
-Token tokens[100];
-int pos;
+int pos = 0;
 
+//vector
+typedef struct {
+	void **data;
+	int capacity;
+	int len;
+} Vector;
+
+Vector *new_vector() {
+	Vector *vec = malloc(sizeof(Vector));
+	vec->data = malloc(sizeof(void *) * 16);
+	vec->capacity = 16;
+	vec->len = 0;
+	return vec;
+}
+
+void push_vec(Vector *vec, void *elem) {
+	if (vec->len == vec->capacity) {
+		vec->capacity *= 2;
+		vec->data = realloc(vec->data, sizeof(void *) * vec->capacity);
+	}
+	vec->data[vec->len++] = elem;
+}
+
+//error
 void error(char *fmt, ...){
 	va_list ap;
 	va_start(ap, fmt);
@@ -34,59 +57,73 @@ void error(char *fmt, ...){
 	exit(1);
 }
 
-void tokenize(char *p){
-	int i = 0;
+
+//test function
+void printer(Vector *vec) {
+	int i;
+	printf("capacity:%d, len:%d\n", vec->capacity, vec->len);
+	for (i = 0;vec->len > i;i++) {
+		Token *token = vec->data[i];
+		printf("pos:%d, ty:%d, iniput:%s\n", i, token->ty, token->input);
+	}
+}
+
+
+
+void tokenize(char *p, Vector *vec){
 	while(*p){
+		Token *token = malloc(sizeof(Token));
+
 		if(isspace(*p)){
 			p++;
 			continue;
 		}
 
 		if (strncmp(p, "<=", 2) == 0) {
-				tokens[i].ty = TK_LE;
-				tokens[i].input = "<=";
+				token->ty = TK_LE;
+				token->input = "<=";
+				push_vec(vec, token);
 				p += 2;
-				i++;
 				continue;
 		}
 
 		if (strncmp(p, ">=", 2) == 0) {
-				tokens[i].ty = TK_GE;
-				tokens[i].input = ">=";
+				token->ty = TK_GE;
+				token->input = ">=";
+				push_vec(vec, token);
 				p += 2;
-				i++;
 				continue;
 		}
 
 		if (strncmp(p, "==", 2) == 0) {
-			tokens[i].ty = TK_EQ;
-			tokens[i].input = "==";
+			token->ty = TK_EQ;
+			token->input = "==";
+			push_vec(vec, token);
 			p += 2;
-			i++;
 			continue;
 		}
 
 		if (strncmp(p, "!=", 2) == 0){
-			tokens[i].ty = TK_NE;
-			tokens[i].input = "==";
+			token->ty = TK_NE;
+			token->input = "==";
+			push_vec(vec, token);
 			p += 2;
-			i++;
 			continue;
 		}
 
 		if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||  *p == '(' || *p == ')' || *p == '>' || *p == '<' || *p == '%') {
-			tokens[i].ty = *p;
-			tokens[i].input = p;
-			i++;
+			token->ty = *p;
+			token->input = p;
+			push_vec(vec, token);
 			p++;
 			continue;
 		}
 
 		if(isdigit(*p)){
-			tokens[i].ty = TK_NUM;
-			tokens[i].input = p;
-			tokens[i].val = strtol(p, &p, 10);
-			i++;
+			token->ty = TK_NUM;
+			token->input = p;
+			token->val = strtol(p, &p, 10);
+			push_vec(vec, token);
 			continue;
 		}
 
@@ -94,9 +131,10 @@ void tokenize(char *p){
 		error("トークナイズできません: %s", p);
 		exit(1);
 	}
-
-	tokens[i].ty = TK_EOF;
-	tokens[i].input = p;
+	Token *token = malloc(sizeof(Token));
+	token->ty = TK_NUM;
+	token->input = p;
+	push_vec(vec, token);
 }
 
 //構文解析
@@ -111,11 +149,11 @@ typedef struct Node {
 	int val;
 }	Node;
 
-Node *relational();
-Node *add();
-Node *term();
-Node *mul();
-Node *unary();
+Node *relational(Vector *);
+Node *add(Vector *);
+Node *term(Vector *);
+Node *mul(Vector *);
+Node *unary(Vector *);
 
 Node *new_node(int ty, Node *lhs, Node *rhs) {
 	Node *node = malloc(sizeof(Node));
@@ -132,94 +170,94 @@ Node *new_node_num(int val) {
 	return node;
 }
 
-int consume(int ty) {
-	if (tokens[pos].ty != ty)
+int consume(int ty, Vector *vec) {
+	if (((Token *)vec->data[pos])->ty != ty)
 		return 0;
 	pos++;
 	return 1;
 
 }
 
-Node *equality() {
-	Node *node = relational();
+Node *equality(Vector *vec) {
+	Node *node = relational(vec);
 
 	for (;;) {
-		if (consume(TK_EQ))
-			node = new_node(TK_EQ, node, relational());
-		else if (consume(TK_NE))
-			node = new_node(TK_NE, node, relational());
+		if (consume(TK_EQ, vec))
+			node = new_node(TK_EQ, node, relational(vec));
+		else if (consume(TK_NE, vec))
+			node = new_node(TK_NE, node, relational(vec));
 		else
 			return node;
 	}
 }
 
-Node *relational() {
-	Node *node = add();
+Node *relational(Vector *vec) {
+	Node *node = add(vec);
 
 	for (;;) {
-		if (consume(TK_GE))
-			node = new_node(TK_LE, add(), node);
-		else if (consume('>'))
-			node = new_node('<', add(), node);
-		else if (consume(TK_LE))
-			node = new_node(TK_LE, node, add());
-		else if (consume('<'))
-			node = new_node('<', node, add());
+		if (consume(TK_GE, vec))
+			node = new_node(TK_LE, add(vec), node);
+		else if (consume('>', vec))
+			node = new_node('<', add(vec), node);
+		else if (consume(TK_LE, vec))
+			node = new_node(TK_LE, node, add(vec));
+		else if (consume('<', vec))
+			node = new_node('<', node, add(vec));
 		else
 			return node;
 	}
 }
 
 
-Node *add() {
-	Node *node = mul();
+Node *add(Vector *vec) {
+	Node *node = mul(vec);
 
 	for (;;) {
-		if (consume('+'))
-			node = new_node('+', node, mul());
-		else if (consume('-'))
-			node = new_node('-', node, mul());
+		if (consume('+', vec))
+			node = new_node('+', node, mul(vec));
+		else if (consume('-', vec))
+			node = new_node('-', node, mul(vec));
 		else
 			return node;
 	}
 }
 
-Node *mul() {
-	Node *node = unary();
+Node *mul(Vector *vec) {
+	Node *node = unary(vec);
 
 	for (;;) {
-		if (consume('*'))
-			node = new_node('*', node, term());
-		else if (consume('/'))
-			node = new_node('/', node, term());
-		else if (consume('%'))
-			node = new_node('%', node, term());
+		if (consume('*', vec))
+			node = new_node('*', node, term(vec));
+		else if (consume('/', vec))
+			node = new_node('/', node, term(vec));
+		else if (consume('%', vec))
+			node = new_node('%', node, term(vec));
 		else
 			return node;
 	}
 }
 
-Node *term() {
-	if (consume('(')) {
-		Node *node = add();
-		if (!consume(')'))
+Node *term(Vector *vec) {
+	if (consume('(', vec)) {
+		Node *node = add(vec);
+		if (!consume(')', vec))
 			error("開きカッコの対応する閉じカッコがありません: %s",
-						tokens[pos].input);
+						((Token *)vec->data[pos])->input);
 			return node;
 	}
 
-	if (tokens[pos].ty == TK_NUM)
-		return new_node_num(tokens[pos++].val);
+	if (((Token *)vec->data[pos])->ty == TK_NUM)
+		return new_node_num(((Token *)vec->data[pos++])->val);
 	error("数値でも開きカッコでもないトークンです: %s",
-				tokens[pos].input);
+				((Token *)vec->data[pos])->input);
 }
 
-Node *unary() {
-	if (consume('+'))
-		return term();
-	if (consume('-'))
-		return new_node('-', new_node_num(0), term());
-	return term();
+Node *unary(Vector *vec) {
+	if (consume('+', vec))
+		return term(vec);
+	if (consume('-', vec))
+		return new_node('-', new_node_num(0), term(vec));
+	return term(vec);
 }
 
 void gen(Node *node) {
@@ -286,10 +324,19 @@ int main(int argc, char **argv){
 		fprintf(stderr, "引数の個数が正しくありません\n");
 		return 1;
 	}
+	
+	Vector *vec = new_vector();
 
 	//トークナイズしてパースする
-	tokenize(argv[1]);
-	Node *node = equality();
+	tokenize(argv[1], vec);
+
+	//Test function
+	if (strcmp(argv[1], "-test") == 0) {
+			printer(vec);
+	}
+			
+		
+	Node *node = equality(vec);
 
 	//アセンブリの前半部分を出力
 	printf(".intel_syntax noprefix\n");
