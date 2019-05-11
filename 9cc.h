@@ -1,4 +1,4 @@
-#include <ctupe.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,3 +62,7 @@ Node *new_node_num(int val);
 int consume(int ty, Vector *vec);
 
 void gen(Node *node);
+
+//test function
+int expect(int line, int expected, int actual);
+void runtest();

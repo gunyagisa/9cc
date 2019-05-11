@@ -105,7 +105,7 @@ Node *equality(Vector *vec) {
 }
 
 Node *relational(Vector *vec) {
-	Node *node = add();
+	Node *node = add(vec);
 
 	for (;;) {
 		if (consume(TK_GE, vec))
@@ -148,18 +148,18 @@ Node *mul(Vector *vec) {
 }
 
 Node *term(Vector *vec) {
+	Token *token = vec->data[pos];
+
 	if (consume('(', vec)) {
 		Node *node = add(vec);
 		if (!consume(')', vec))
-			error("開きカッコの対応する閉じカッコがありません: %s",
-						((Token *)vec->data[pos])->input);
-			return node;
+			error("開きカッコの対応する閉じカッコがありません: %s",token->input);
+		return node;
 	}
 
 	if (((Token *)vec->data[pos])->ty == TK_NUM)
 		return new_node_num(((Token *)vec->data[pos++])->val);
-	error("数値でも開きカッコでもないトークンです: %s",
-				((Token *)vec->data[pos])->input);
+	error("数値でも開きカッコでもないトークンです: %s",token->input);
 }
 
 Node *unary(Vector *vec) {
@@ -169,11 +169,3 @@ Node *unary(Vector *vec) {
 		return new_node('-', new_node_num(0), term(vec));
 	return term(vec);
 }
-
-
-
-
-
-
-
-
