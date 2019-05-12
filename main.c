@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 	
 	//tokenize
 	tokenize(argv[1], vec);
-
+	
 	Node *node = equality(vec);
 
 	printf(".intel_syntax noprefix\n");

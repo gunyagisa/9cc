@@ -116,6 +116,8 @@ Node *relational(Vector *vec) {
 			node = new_node(TK_LE, node, add(vec));
 		else if (consume('<', vec))
 			node = new_node('<', node, add(vec));
+		else
+			return node;
 	}
 }
 
@@ -157,7 +159,7 @@ Node *term(Vector *vec) {
 		return node;
 	}
 
-	if (((Token *)vec->data[pos])->ty == TK_NUM)
+	if (token->ty == TK_NUM)
 		return new_node_num(((Token *)vec->data[pos++])->val);
 	error("数値でも開きカッコでもないトークンです: %s",token->input);
 }

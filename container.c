@@ -16,6 +16,14 @@ void push_vec(Vector *vec, void *elem) {
 	vec->data[vec->len++] = elem;
 }
 
+//error function
+void error(char *fmt, ...) {
+	va_list ap;
+	va_start(ap,fmt);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	exit(1);
+}
 
 //test function
 int expect(int line, int expected, int actual) {
